@@ -1,0 +1,26 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Python Debugger: Current File",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal",
+            // "args" : ["--cfg_file", "/home/ave/Documents/UniTR/tools/cfgs/kradar_models/bevdepth_1_wd_noref_test.yaml", "--ckpt", "/home/ave/Documents/UniTR/output/kradar_models/bevdepth_1_wd_noref_/default/ckpt/checkpoint_epoch_10.pth"],
+            // "args" : ["--cfg_file", "/home/ave/Documents/UniTR/tools/cfgs/kradar_models/bevdepth_reconstructed.yaml", "--ckpt", "/home/ave/Documents/UniTR/output/kradar_models/bevdepth_1_wd_noref_/default/ckpt/checkpoint_epoch_10.pth"],
+            // "args" : ["--cfg_file", "/home/ave/Documents/UniTR/tools/cfgs/kradar_models/bevdepth_reconstructed.yaml"],
+            // "args" : ["--cfg_file", "/home/ave/Documents/UniTR/tools/cfgs/kradar_models/bevdepth_1_wd_noref.yaml"],
+            // "args" : ["--cfg_file", "/home/ave/Documents/UniTR/tools/cfgs/kradar_models/bevdepth_1_wd_noref.yaml", "--grad_acc", "--accum_iter", "8"],
+            "args" : ["--cfg_file", "/home/ave/Documents/UniTR/tools/cfgs/kradar_models/bevdepth_512_16_dataloaderedited.yaml"],
+            // "args" : ["--cfg_file", "/home/ave/Documents/UniTR/tools/cfgs/nuscenes_models/bevdepth_mini.yaml"],
+            // "args" : ["--cfg_file", "/home/ave/Documents/UniTR/tools/cfgs/nuscenes_models/bevdepth_mini_test.yaml", "--ckpt", "/home/ave/Documents/UniTR/output/nuscenes_models/bevdepth_mini/default/ckpt/checkpoint_epoch_24.pth"],
+            // "args" : ["--cfg_file", "/home/ave/Documents/UniTR/tools/cfgs/nuscenes_models/bevfusion.yaml"],
+            // "args" : ["--func", "create_nuscenes_infos", "--cfg_file", "tools/cfgs/dataset_configs/nuscenes_dataset.yml", "--version", "v1.0-mini", "--with_cam", "--with_cam_gt"],
+            "justMyCode": false
+        }
+    ]
+}

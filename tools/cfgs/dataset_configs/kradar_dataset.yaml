@@ -1,0 +1,71 @@
+DATASET: 'KRadarDataset'
+DATA_PATH: 
+  # root_path: '/home/ave/Documents/KRadarData/K-Radar_1to20'
+  root_path: '/media/ave/N25T7/KRadarData/K-Radar_1to20'
+  split: ['/home/ave/Documents/K-Radar/resources/split/train.txt', '/home/ave/Documents/K-Radar/resources/split/test.txt']
+  revised_label_v1_1: '/home/ave/Documents/K-Radar/tools/revise_label/kradar_revised_label_v1_1'
+  revised_label_v2_0: '/home/ave/Documents/K-Radar/tools/revise_label/kradar_revised_label_v2_0/KRadar_refined_label_by_UWIPL'
+  revised_label_v2_1: '/home/ave/Documents/K-Radar/tools/revise_label/kradar_revised_label_v2_1/KRadar_revised_visibility'
+
+DATA_SPLIT: {
+    'train': train,
+    'test': val
+}
+
+POINT_FEATURE_ENCODING: {
+    encoding_type: absolute_coordinates_encoding,
+    used_feature_list: ['x', 'y', 'z', 'intensity', 'timestamp'],
+    src_feature_list: ['x', 'y', 'z', 'intensity', 'timestamp', 'reflectivity', 'ring', 'ambient', 'range'],
+}
+
+LABEL: { # (consider, logit_idx, rgb, bgr)
+    'calib':            True, 
+    'onlyR':            False,
+    'consider_cls':     True,
+    'consider_roi':     True,
+    'remove_0_obj':     True,
+    'Sedan':            [True,  1,  [0, 1, 0],       [0,255,0]],
+    'Bus or Truck':     [True,  2,  [1, 0.2, 0],     [0,50,255]],
+    'Motorcycle':       [False, -1, [1, 0, 0],       [0,0,255]],
+    'Bicycle':          [False, -1, [1, 1, 0],       [0,255,255]],
+    'Bicycle Group':    [False, -1, [0, 0.5, 1],     [0,128,255]],
+    'Pedestrian':       [False, -1, [0, 0, 1],       [255,0,0]],
+    'Pedestrian Group': [False, -1, [0.4, 0, 1],     [255,0,100]],
+    'Label':            [False, -1, [0.5, 0.5, 0.5], [128,128,128]],
+  }
+
+LDR64: {
+    'processed': False,
+    'skip_line': 13,
+    'n_attr': 9,
+    'inside_ldr64': True,
+    'calib': True,
+  }
+
+CALIB: {
+    'z_offset': 0.7
+  }
+
+CAM_CALIB : {
+    'load' : True,
+    'dir' : '/home/ave/Documents/K-Radar/resources/cam_calib/common',
+    'dir_npy' : '/home/ave/Documents/K-Radar/resources/cam_calib/T_npy',
+    'dir_seq': '/home/ave/Documents/K-Radar/resources/cam_calib/calib_seq'
+}
+
+CALIB_CAM : {
+  'front' : 'cam_2',
+  'left' : 'cam_8',
+  'right' : 'cam_4',
+  'rear' : 'cam_6'
+}
+
+ROI: {
+    'filter': True,
+    'xyz': [0., -16., -2., 72, 16., 7.6],
+    'keys': ['points'],
+    'check_azimuth_for_rdr': False,
+    'azimuth_deg': [-180,180],
+    'grid_size': ,
+    'voxel_size': ,
+  }

@@ -1,0 +1,304 @@
+CLASS_NAMES: ['Sedan', 'Bus or Truck']
+
+DATA_CONFIG:
+    _BASE_CONFIG_: /home/ave/Documents/UniTR/tools/cfgs/dataset_configs/kradar_dataset.yaml
+    POINT_CLOUD_RANGE: [0.,-16.,-5.,50.,16.,3.]
+    CAMERA_CONFIG:
+        USE_CAMERA: True
+        IMAGE:
+            FINAL_DIM: [256, 704]
+            RESIZE_LIM_TRAIN: [0.7, 0.7]
+            RESIZE_LIM_TEST: [0.7, 0.7]
+            CROP: [96, 170, 800, 426]
+        CAM: {
+              "front" : True,
+              "left" : False,
+              "right" : False,
+              "rear" : False
+            }
+
+    DATA_AUGMENTOR:
+        DISABLE_AUG_LIST: ['random_world_flip', 'random_world_rotation', 'random_world_scaling', 'random_world_translation', 'imgaug']
+        AUG_CONFIG_LIST:
+            - NAME: random_world_flip
+              ALONG_AXIS_LIST: ['x', 'y']
+
+            - NAME: random_world_rotation
+              WORLD_ROT_ANGLE: [-0.78539816, 0.78539816]
+
+            - NAME: random_world_scaling
+              WORLD_SCALE_RANGE: [0.9, 1.1]
+
+            - NAME: random_world_translation
+              NOISE_TRANSLATE_STD: [0.5, 0.5, 0.5]
+            
+            - NAME: imgaug
+              ROT_LIM: [-5.4, 5.4]
+              RAND_FLIP: True
+
+    DATA_PROCESSOR:
+        - NAME: mask_points_and_boxes_outside_range
+          REMOVE_OUTSIDE_BOXES: True
+
+        - NAME: shuffle_points
+          SHUFFLE_ENABLED: {
+            'train': True,
+            'test': True
+          }
+
+        - NAME: transform_points_to_voxels
+          VOXEL_SIZE: [0.1, 0.1, 0.2]
+          MAX_POINTS_PER_VOXEL: 10
+          MAX_NUMBER_OF_VOXELS: {
+            'train': 60000,
+            'test': 60000
+          }
+
+        - NAME: image_calibrate
+        
+        - NAME: image_normalize
+          mean: [0.303, 0.303, 0.307]
+          std: [0.113, 0.119, 0.107]
+        
+        - NAME: get_depth
+          KEYFRAME_ONLY: False
+
+MODEL:
+    NAME: BevDepth
+
+    IMAGE_BACKBONE:
+        NAME: ResNet
+        DEPTH: 50
+        OUT_INDICES: [0, 1, 2, 3]
+        NORM_EVAL: False
+        PRETRAINED: True
+        CHECKPOINT: /home/ave/Documents/UniTR/checkpoints/resnet50.pth
+    
+    NECK:
+        NAME: SECONDFPN
+        IN_CHANNELS: [256, 512, 1024, 2048]
+        OUT_CHANNELS: [128, 128, 128, 128]
+        UPSAMPLE_STRIDES: [0.25, 0.5, 1, 2]  
+    
+    VTRANSFORM:
+        NAME: BaseLSSTransform
+        IMAGE_SIZE: [256, 704]
+        IN_CHANNEL: 512
+        OUT_CHANNEL: 80
+        FEATURE_SIZE: [16, 44]
+        XBOUND: [0.0, 51.2, 0.8]
+        YBOUND: [-16.0, 16.0, 0.8]
+        ZBOUND: [-10.0, 10.0, 20.]
+        DBOUND: [1.0, 60.0, 1.0]
+        DOWNSAMPLE: 1
+        DOWNSAMPLE_FACTOR: 16
+        RETURN_DEPTH: True
+    
+    BACKBONE_2D:
+        NAME: ResNet
+        IN_CHANNELS: 80
+        DEPTH: 18
+        NUM_STAGES: 3
+        STRIDES: [1, 2, 2]
+        DILATIONS: [1, 1, 1]
+        OUT_INDICES: [0, 1, 2]
+        NORM_EVAL: False
+        BASE_CHANNELS: 160
+    
+    NECK_BEV:
+        NAME: SECONDFPN
+        IN_CHANNELS: [80, 160, 320, 640]
+        OUT_CHANNELS: [64, 64, 64, 64]
+        UPSAMPLE_STRIDES: [1, 2, 4, 8]
+
+    DENSE_HEAD:
+        CLASS_AGNOSTIC: False
+        NAME: CenterHead
+        INPUT_FEATURES: 256
+
+        CLASS_NAMES_EACH_HEAD: [
+          ['Sedan', 'Bus or Truck']
+        ]
+
+        SHARED_CONV_CHANNEL: 64
+        USE_BIAS_BEFORE_NORM: True
+        NUM_HM_CONV: 2
+        SEPARATE_HEAD_CFG:
+          HEAD_ORDER: [ 'center', 'center_z', 'dim', 'rot' ]
+          HEAD_DICT: {
+              'center': { 'out_channels': 2, 'num_conv': 2 },
+              'center_z': { 'out_channels': 1, 'num_conv': 2 },
+              'dim': { 'out_channels': 3, 'num_conv': 2 },
+              'rot': { 'out_channels': 2, 'num_conv': 2 },
+          }
+        
+        TARGET_ASSIGNER_CONFIG:
+            FEATURE_MAP_STRIDE: 8 # out_size_factor in bevfusion github
+            NUM_MAX_OBJS: 500
+            GAUSSIAN_OVERLAP: 0.1
+            MIN_RADIUS: 2
+
+        LOSS_CONFIG:
+            LOSS_CLS: {
+                'loss_type': 'GaussianFocalLoss',
+                'reduction' : 'mean'
+            }
+            LOSS_REG: {
+                'loss_type': 'L1LossCustom',
+                'reduction' : 'mean'  
+            }
+            LOSS_WEIGHTS: {
+                'cls_weight': 1.0,
+                'loc_weight': 0.25,
+                'depth_weight': 3.0,
+                'code_weights': [ 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0 ]
+            }
+         
+        POST_PROCESSING:
+            SCORE_THRESH: 0.1
+            POST_CENTER_LIMIT_RANGE: [0.,-25.,-10., 60.,25.,10.]
+            MAX_OBJ_PER_SAMPLE: 500
+            NMS_CONFIG:
+                NMS_TYPE: circle_nms
+                NMS_THRESH: 0.2
+                NMS_PRE_MAXSIZE: 1000
+                NMS_POST_MAXSIZE: 83
+                MIN_RADIUS: 4
+
+    POST_PROCESSING:
+        RECALL_THRESH_LIST: [0.3, 0.5, 0.7]
+        SCORE_THRESH: 0.1
+        OUTPUT_RAW_SCORE: False
+
+        EVAL_METRIC: kitti
+
+
+OPTIMIZATION:
+    BATCH_SIZE_PER_GPU: 1
+    NUM_EPOCHS: 30
+
+    OPTIMIZER: adamw_cosineanneal
+    LR: 0.0002
+    WEIGHT_DECAY: 0.01
+    MOMENTUM: 0.9
+    BETAS: [0.9, 0.999]
+
+    MOMS: [0.9, 0.8052631]
+    PCT_START: 0.4
+    WARMUP_ITER: 500
+
+    DECAY_STEP_LIST: [35, 45]
+    LR_WARMUP: False
+    WARMUP_EPOCH: 1
+
+    GRAD_NORM_CLIP: 35
+
+    LOSS_SCALE_FP16: 32
+
+# 20 epochs bs 16
+
+# -----conf0.3-----
+# bus AP(Average Precision)@0.70, 0.70, 0.70:
+# bbox AP:17.76, 17.76, 17.76
+# bev  AP:1.82, 1.82, 1.82
+# 3d   AP:1.82, 1.82, 1.82
+# aos  AP:17.76, 17.76, 17.76
+# bus AP(Average Precision)@0.50, 0.50, 0.50:
+# bbox AP:17.76, 17.76, 17.76
+# bev  AP:9.09, 9.09, 9.09
+# 3d   AP:9.09, 9.09, 9.09
+# aos  AP:17.76, 17.76, 17.76
+# bus AP(Average Precision)@0.30, 0.30, 0.30:
+# bbox AP:17.76, 17.76, 17.76
+# bev  AP:9.09, 9.09, 9.09
+# 3d   AP:9.09, 9.09, 9.09
+# aos  AP:17.76, 17.76, 17.76
+
+# -----conf0.3-----
+# sed AP(Average Precision)@0.70, 0.70, 0.70:
+# bbox AP:35.38, 35.38, 35.38
+# bev  AP:9.09, 9.09, 9.09
+# 3d   AP:2.27, 2.27, 2.27
+# aos  AP:35.38, 35.38, 35.38
+# sed AP(Average Precision)@0.50, 0.50, 0.50:
+# bbox AP:35.38, 35.38, 35.38
+# bev  AP:11.39, 11.39, 11.39
+# 3d   AP:9.09, 9.09, 9.09
+# aos  AP:35.38, 35.38, 35.38
+# sed AP(Average Precision)@0.30, 0.30, 0.30:
+# bbox AP:35.38, 35.38, 35.38
+# bev  AP:13.63, 13.63, 13.63
+# 3d   AP:12.94, 12.94, 12.94
+# aos  AP:35.38, 35.38, 35.38
+
+# epoch 24
+
+# -----conf0.3-----
+# sed AP(Average Precision)@0.70, 0.70, 0.70:
+# bbox AP:35.34, 35.34, 35.34
+# bev  AP:1.64, 1.64, 1.64
+# 3d   AP:1.01, 1.01, 1.01
+# aos  AP:35.34, 35.34, 35.34
+# sed AP(Average Precision)@0.50, 0.50, 0.50:
+# bbox AP:35.34, 35.34, 35.34
+# bev  AP:11.35, 11.35, 11.35
+# 3d   AP:9.09, 9.09, 9.09
+# aos  AP:35.34, 35.34, 35.34
+# sed AP(Average Precision)@0.30, 0.30, 0.30:
+# bbox AP:35.34, 35.34, 35.34
+# bev  AP:13.39, 13.39, 13.39
+# 3d   AP:12.59, 12.59, 12.59
+# aos  AP:35.34, 35.34, 35.34
+
+# -----conf0.3-----
+# bus AP(Average Precision)@0.70, 0.70, 0.70:
+# bbox AP:17.95, 17.95, 17.95
+# bev  AP:0.47, 0.47, 0.47
+# 3d   AP:0.41, 0.41, 0.41
+# aos  AP:17.95, 17.95, 17.95
+# bus AP(Average Precision)@0.50, 0.50, 0.50:
+# bbox AP:17.95, 17.95, 17.95
+# bev  AP:9.09, 9.09, 9.09
+# 3d   AP:9.09, 9.09, 9.09
+# aos  AP:17.95, 17.95, 17.95
+# bus AP(Average Precision)@0.30, 0.30, 0.30:
+# bbox AP:17.95, 17.95, 17.95
+# bev  AP:9.09, 9.09, 9.09
+# 3d   AP:9.09, 9.09, 9.09
+# aos  AP:17.95, 17.95, 17.95
+
+#epoch 21
+
+# -----conf0.3-----
+# sed AP(Average Precision)@0.70, 0.70, 0.70:
+# bbox AP:35.46, 35.46, 35.46
+# bev  AP:9.09, 9.09, 9.09
+# 3d   AP:9.09, 9.09, 9.09
+# aos  AP:35.46, 35.46, 35.46
+# sed AP(Average Precision)@0.50, 0.50, 0.50:
+# bbox AP:35.46, 35.46, 35.46
+# bev  AP:11.27, 11.27, 11.27
+# 3d   AP:9.09, 9.09, 9.09
+# aos  AP:35.46, 35.46, 35.46
+# sed AP(Average Precision)@0.30, 0.30, 0.30:
+# bbox AP:35.46, 35.46, 35.46
+# bev  AP:13.60, 13.60, 13.60
+# 3d   AP:13.07, 13.07, 13.07
+# aos  AP:35.46, 35.46, 35.46
+
+# -----conf0.3-----
+# bus AP(Average Precision)@0.70, 0.70, 0.70:
+# bbox AP:17.58, 17.58, 17.58
+# bev  AP:3.03, 3.03, 3.03
+# 3d   AP:3.03, 3.03, 3.03
+# aos  AP:17.58, 17.58, 17.58
+# bus AP(Average Precision)@0.50, 0.50, 0.50:
+# bbox AP:17.58, 17.58, 17.58
+# bev  AP:9.09, 9.09, 9.09
+# 3d   AP:9.09, 9.09, 9.09
+# aos  AP:17.58, 17.58, 17.58
+# bus AP(Average Precision)@0.30, 0.30, 0.30:
+# bbox AP:17.58, 17.58, 17.58
+# bev  AP:9.09, 9.09, 9.09
+# 3d   AP:9.09, 9.09, 9.09
+# aos  AP:17.58, 17.58, 17.58
